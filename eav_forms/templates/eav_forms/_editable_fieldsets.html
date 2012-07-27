@@ -1,0 +1,51 @@
+{% load i18n %}
+
+<ul class="tab-list">
+    {% for tab in tabs %}
+    <li data-pk="{{ tab.pk }}">
+        <a href="#tab-{{ tab.pk }}">
+            <span class="handle ui-icon ui-icon-arrow-2-e-w"></span>
+            <span contenteditable="true" class="name">{{ tab.name }}</span>
+        </a>
+    </li>
+    {% endfor %}
+
+    {% if toolbox %}
+    <li>
+        <a href="#tab-new-field">
+            {% trans 'New field' %}
+        </a>
+    </li>
+    {% endif %}
+</ul>
+
+{% for tab in tabs %}
+<div class="fieldset" id="tab-{{ tab.pk }}">
+    {% for field in tab.field_set.all %}
+    <div class="field {{ field.kind }}" id="field-{{ field.model_field_name }}"
+        data-model-field-name="{{ field.model_field_name }}" data-pk="{{ field.pk }}">
+
+        <span class="handle ui-icon ui-icon-arrowthick-2-n-s"></span>
+        {{ field.kind }}
+        <div class="name" contenteditable="true">
+            {{ field.name }}
+        </div>
+        <span class="help-icon ui-icon ui-icon-help"></span>
+        <div class="help-text" contenteditable="true"></div>
+    </div>
+    {% endfor %}
+</div>
+{% endfor %}
+
+{% if toolbox %}
+<div class="fieldset" id="tab-new-field">
+    {% for kind in KIND_CHOICES %}
+    <div class="field {{ kind.0 }} new-field" id="new-field-{{ kind.0 }}">
+        <span class="handle ui-icon ui-icon-arrowthick-2-n-s"></span>
+        <div class="name">{{ kind.1 }}</div>
+        <span style="display:none" class="help-icon ui-icon ui-icon-help"></span>
+        <div style="display:none"  class="help-text" contenteditable="true"></div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}

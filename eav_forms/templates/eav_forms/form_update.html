@@ -1,0 +1,199 @@
+{% extends 'eav_forms/base.html' %}
+
+{% load i18n %}
+
+{% block content %}
+<style type="text/css">
+.enabled-form.outer, .disabled-form.outer { display: inline-block; width: 49%; }
+.inner, .outer { vertical-align: top; }
+.field * { display: inline-block; }
+.tab-list li a span { display: inline-block; }
+.handle { vertical-align: bottom; }
+.field { width: 120px; }
+</style>
+
+<script type="text/javascript">
+$(document).ready(function() {
+
+    var field_label = $( "#field-label" ),
+        field_code = $( "#field-code" ),
+        allFields = $( [] ).add( field_label ).add( field_code ),
+        tips = $( ".validateTips" );
+
+    $('#field-label').keyup(function() {
+        slugify
+    });
+
+    function updateTips( t ) {
+        tips
+            .text( t )
+            .addClass( "ui-state-highlight" );
+        setTimeout(function() {
+            tips.removeClass( "ui-state-highlight", 1500 );
+        }, 500 );
+    }
+
+    function checkLength( o, n, min, max ) {
+        if ( o.val().length > max || o.val().length < min ) {
+            o.addClass( "ui-state-error" );
+            updateTips( "Length of " + n + " must be between " +
+                min + " and " + max + "." );
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    function slugify(text) {
+        text = text.replace(/[^-a-zA-Z0-9,&\s]+/ig, '');
+        text = text.replace(/-/gi, "_");
+        text = text.replace(/\s/gi, "-");
+        return text;
+    }
+
+    var enableUi = function() {
+        $('li.tab-new').remove();
+
+        $('.inner').tabs('destroy');
+        var $tabs = $('.inner').tabs();
+        $tabs.find( '.ui-tabs-nav' ).sortable({
+            axis: 'x',
+            handle: '.handle',
+            items: 'li:not(.tab-new)',
+        });
+
+        $('.fieldset').sortable('destroy');
+        $('.fieldset').sortable({
+            connectWith: '.fieldset',
+            forcePlaceholderSize: true,
+            placeholder: 'ui-state-highlight',
+            items: '.field',
+            handle: '.handle',
+            update: function(event, ui) {
+                if (ui.item.hasClass('new-field')) {
+                    if (ui.item.data('created')) {
+                        return true;
+                    }
+
+                    $('#tab-new-field').append(ui.item.clone());
+
+                    $('#new-field').dialog({
+                        modal: true,
+                        width: 400,
+                        buttons: {
+                            "Create an account": function() {
+                                var bValid = true;
+                                allFields.removeClass( "ui-state-error" );
+
+                                bValid = bValid && checkLength( field_label, "label", 2, 16 );
+                                bValid = bValid && checkLength( field_code, "code", 4, 80 );
+
+                                if ( bValid ) {
+                                    ui.item.find('.name').html(field_label.val()).attr('contenteditable', true).show();
+                                    ui.item.data('model-field-name', field_code.val());
+                                    ui.item.find('.help-text').show();
+                                    ui.item.find('.help-icon').show();
+                                    $( this ).dialog( "close" );
+                                }
+                            },
+                            Cancel: function() {
+                                $( this ).dialog( "close" );
+                            }
+                        },
+                        close: function() {
+                            allFields.val( "" ).removeClass( "ui-state-error" );
+                        }
+                    })
+
+                    ui.item.data('created', true);
+                }
+            },
+        });
+
+        var $tab_items = $( 'ul.tab-list li:not(.tab-new)', $tabs ).droppable({
+            accept: '.field',
+            hoverClass: 'ui-state-hover',
+            drop: function( event, ui ) {
+                var $item = $( this );
+                var $list = $( $item.find( 'a' ).attr( 'href' ) );
+
+                ui.draggable.hide( 'slow', function() {
+                    $tabs.tabs( 'select', $tab_items.index( $item ) );
+                    $( this ).appendTo( $list ).show( 'slow' );
+                });
+            }
+        });
+
+        $('.enabled-form .tab-list').append(
+            '<li class="tab-new ui-state-default ui-corner-top"><a id="tab-new">+</a></li>');
+    };
+
+    $('.help-icon').live('click', function() {
+        var helpText = $(this).parents('.field').find('.help-text');
+        if (!$.trim(helpText.html())) {
+            helpText.html('{% trans 'Your help text here ...' %}');
+        }
+    })
+
+    $('#tab-new').live('click', function() {
+        var id = 1;
+        while ($('#tab-' + id).length > 0) {
+            id = id + 1;
+        }
+
+        var html = ['<li class="ui-state-default ui-corner-top">'];
+        html.push('<a href="#tab-' + id + '">');
+        html.push('<span class="handle ui-icon ui-icon-arrow-2-e-w"></span>');
+        html.push('<span contenteditable="true" class="name">new</span>');
+        html.push('</a></li>');
+        $(this).parent().before(html.join(''));
+
+        $(this).parents('.inner').append(
+            '<div class="fieldset" id="tab-' + id + '"></div>');
+
+        enableUi();
+    });
+
+    enableUi();
+});
+</script>
+
+<div class="form-info">
+    {{ object }}
+</div>
+
+<div class="enabled-form outer">
+    <h3>Actual form</h3>
+    <div class="enabled-form inner">
+        {% include "eav_forms/_editable_fieldsets.html" with tabs=object.enabled_tab_set %}
+    </div>
+</div>
+
+<div class="disabled-form outer">
+    <h3>Toolbox</h3>
+    <div class="disabled-form inner">
+        {% include "eav_forms/_editable_fieldsets.html" with tabs=object.disabled_tab_set toolbox=1 %}
+    </div>
+</div>
+
+<div style="display:none" id="new-field">
+    <p class="validateTips">All form fields are required.</p>
+    <form>
+        <label for="field-label">
+            {% trans 'Field label' %}
+        </label>
+        <input id="field-label" name="field-label" />
+        <p>
+            {% blocktrans %}Label of the field as it will appear in the interface, including forms, tables, etc, etc ... This is changeable anytime.{% endblocktrans %}
+        </p>
+
+        <label for="field-code">
+            {% trans 'Field code' %}
+        </label>
+        <input id="field-code" name="field-code" />
+        <p>
+            {% blocktrans %}Field code is used internally, to name the database column for this field. It must be clear and short, and contain only alphanumeric characters and underscores. For example, a field with label "Color of hair" should be "hair_color". More specifically, "Prix d'achat" should be "prix_achat". This <b>is not changeable</b>, if in doubt contact customer support.{% endblocktrans %}
+        </p>
+    </form>
+</div>
+{% endblock %}
